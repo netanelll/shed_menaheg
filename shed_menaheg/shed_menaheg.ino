@@ -142,7 +142,8 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 /// debug declarations
 
 #define ENABLE_TELEMETRY_VIA_USB 0
-#define ENABLE_TELEMETRY_VIA_XBEE 1
+#define ENABLE_TELEMETRY_VIA_XBEE 0
+#define ENABLE_NAVIGATION_SERVO_DEBUG 1
 
 /// end of debug declarations
 
@@ -170,9 +171,9 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define NAVIGATION_SERVO_2_MAX_POS 150
 #define NAVIGATION_SERVO_3_MAX_POS 150
 #define NAVIGATION_SERVO_4_MAX_POS 150
-#define PARACHUTE_RELEASE_TIME 200
+#define PARACHUTE_RELEASE_TIME 10000 // 50 is one sec
 
-#define LAUNCH_DETECTION_THRESHHOLD 7 // in g, 8 g full scale
+#define LAUNCH_DETECTION_THRESHHOLD 1 // in g, 8 g full scale
 
 Servo parachute_servo;
 Servo navigation_servo_1;
@@ -189,12 +190,12 @@ enum Missile_modes_t {
 };
 
 Missile_modes_t missile_status = IN_PREFLIGHT_MODE;
-//Missile_modes_t missile_status = IN_FLIGHT_MODE;
+
 
 int Parachute_release_couner = 0;
 byte Srevo_1_new_pos, Srevo_2_new_pos, Srevo_3_new_pos, Srevo_4_new_pos;
-
-
+bool new_serial_data_available = false;
+byte data_received_via_serial;
 void releas_parachute(){
   if(missile_status == IN_FLIGHT_MODE){
     parachute_servo.write(PARACHUTE_RELEASE_POS);
@@ -245,14 +246,52 @@ void Calculate_heading(){
 }
 
 void Calc_new_navigation_servos_pos(){
+  if(new_serial_data_available){
+    if(data_received_via_serial == 'a'){
+        releas_parachute();
+    }
+    switch (data_received_via_serial>>6) {
+          case 0:
+            Srevo_1_new_pos = data_received_via_serial & 0x3F;
+            break;
+          case 1:
+            Srevo_2_new_pos = data_received_via_serial & 0x3F;
+            break;
+          case 2:
+            Srevo_3_new_pos = data_received_via_serial & 0x3F;
+            break;
+          case 3:
+            Srevo_4_new_pos = data_received_via_serial & 0x3F;
+            break;
+
+      }  
+  }
 
 }
 
 void Update_navigation_servos(){
-  navigation_servo_1.write(Srevo_1_new_pos);
-  navigation_servo_2.write(Srevo_2_new_pos);
-  navigation_servo_3.write(Srevo_3_new_pos);
-  navigation_servo_4.write(Srevo_4_new_pos);
+  if ((Srevo_1_new_pos >= NAVIGATION_SERVO_1_MIN_POS) && (Srevo_1_new_pos <= NAVIGATION_SERVO_1_MAX_POS)){
+    navigation_servo_1.write(Srevo_1_new_pos);
+  }
+  if ((Srevo_2_new_pos >= NAVIGATION_SERVO_2_MIN_POS) && (Srevo_2_new_pos <= NAVIGATION_SERVO_2_MAX_POS)){
+    navigation_servo_2.write(Srevo_2_new_pos);
+  }
+  if ((Srevo_3_new_pos >= NAVIGATION_SERVO_3_MIN_POS) && (Srevo_3_new_pos <= NAVIGATION_SERVO_3_MAX_POS)){
+    navigation_servo_3.write(Srevo_3_new_pos);
+  }
+  if ((Srevo_4_new_pos >= NAVIGATION_SERVO_4_MIN_POS) && (Srevo_4_new_pos <= NAVIGATION_SERVO_4_MAX_POS)){
+    navigation_servo_4.write(Srevo_4_new_pos);
+  }
+  #if ENABLE_NAVIGATION_SERVO_DEBUG == 1
+    Serial.print("pos 1,2,3,4 = ");
+    Serial.print(Srevo_1_new_pos);
+    Serial.print(',');
+    Serial.print(Srevo_2_new_pos);
+    Serial.print(',');
+    Serial.print(Srevo_3_new_pos);
+    Serial.print(',');
+    Serial.println(Srevo_4_new_pos);
+  #endif
 }
 
 void setup()
@@ -311,6 +350,10 @@ void setup()
 
 void loop() //Main Loop
 {
+  while(Serial.available()){
+    data_received_via_serial = Serial.read();
+    new_serial_data_available = true;
+  }
 
   if(missile_status == IN_PREFLIGHT_MODE){
     if(launch_detected()){
@@ -351,7 +394,7 @@ void loop() //Main Loop
     Update_navigation_servos();
 
 
-   #if ENABLE_TELEMETRY_VIA_USB == 1
+   #if ENABLE_TELEMETRY_VIA_USB == 11
       Serial.print("IN_FLIGHT_MODE. roll,pithh,yaw = ");
       Serial.print(ToDeg(roll));
       Serial.print(",");
