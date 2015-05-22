@@ -154,8 +154,8 @@ float Temporary_Matrix[3][3]={
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define PARACHUTE_SERVO_PIN 11
-#define PARACHUTE_CLOSED_POS 10
-#define PARACHUTE_RELEASE_POS 180
+#define PARACHUTE_CLOSED_POS 170
+#define PARACHUTE_RELEASE_POS 30
 #define NAVIGATION_SERVO_1_PIN 5
 #define NAVIGATION_SERVO_2_PIN 6
 #define NAVIGATION_SERVO_3_PIN 9
