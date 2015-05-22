@@ -141,9 +141,9 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 
 /// debug declarations
 
-#define ENABLE_TELEMETRY_VIA_USB 0
+#define ENABLE_TELEMETRY_VIA_USB 1
 #define ENABLE_TELEMETRY_VIA_XBEE 0
-#define ENABLE_NAVIGATION_SERVO_DEBUG 1
+#define ENABLE_NAVIGATION_SERVO_DEBUG 0
 
 /// end of debug declarations
 
@@ -395,7 +395,7 @@ void loop() //Main Loop
 
 
    #if ENABLE_TELEMETRY_VIA_USB == 11
-      Serial.print("IN_FLIGHT_MODE. roll,pithh,yaw = ");
+      Serial.print("IN_FLIGHT_MODE. roll,pitch,yaw = ");
       Serial.print(ToDeg(roll));
       Serial.print(",");
       Serial.print(ToDeg(pitch));
@@ -404,7 +404,7 @@ void loop() //Main Loop
       Serial.println();
     #endif
    #if ENABLE_TELEMETRY_VIA_XBEE == 1
-      Serial1.print("IN_FLIGHT_MODE. roll,pithh,yaw = ");
+      Serial1.print("IN_FLIGHT_MODE. roll,pitch,yaw = ");
       Serial1.print(ToDeg(roll));
       Serial1.print(",");
       Serial1.print(ToDeg(pitch));
@@ -420,7 +420,7 @@ void loop() //Main Loop
     if((millis()-timer)>=2000){ // wait one sec
       parachute_servo.write(PARACHUTE_CLOSED_POS);
     }
-
+    Serial.println("IN_PARACHUTE_MODE");
   }
 
 
