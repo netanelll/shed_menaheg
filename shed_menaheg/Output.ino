@@ -34,11 +34,11 @@ void printdata(void)
 
       #if PRINT_EULER == 1
       Serial.print("ANG:");
-      Serial.print(ToDeg(roll) - roll_init);
+      Serial.print(ToDeg(roll));
       Serial.print(",");
-      Serial.print(ToDeg(pitch) - pitch_init);
+      Serial.print(ToDeg(pitch));
       Serial.print(",");
-      Serial.print(ToDeg(yaw) - yaw_init);
+      Serial.print(ToDeg(yaw));
       #endif      
       #if PRINT_ANALOGS==1
       Serial.print(",AN:");

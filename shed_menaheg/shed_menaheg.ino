@@ -128,33 +128,27 @@ float errorYaw[3]= {0,0,0};
 unsigned int counter=0;
 byte gyro_sat=0;
 
-float DCM_Matrix[3][3]= {
-  {
-    1,0,0  }
-    ,{
-      0,1,0  }
-      ,{
-        0,0,1  }
-      }; 
+float DCM_Matrix[3][3]= {{1,0,0},{0,1,0},{0,0,1}}; 
 float Update_Matrix[3][3]={{0,1,2},{3,4,5},{6,7,8}}; //Gyros here
+float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 
 
-float Temporary_Matrix[3][3]={
-  {
-    0,0,0  }
-    ,{
-      0,0,0  }
-      ,{
-        0,0,0  }
-      };
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////// shed menaheg declarations ////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// debug declarations
+
+#define ENABLE_TELEMETRY_VIA_USB 0
+#define ENABLE_TELEMETRY_VIA_XBEE 1
+
+/// end of debug declarations
+
+
 #define PARACHUTE_SERVO_PIN 11
-#define PARACHUTE_CLOSED_POS 170
+#define PARACHUTE_CLOSED_POS 150
 #define PARACHUTE_RELEASE_POS 30
 #define NAVIGATION_SERVO_1_PIN 5
 #define NAVIGATION_SERVO_2_PIN 6
@@ -168,14 +162,14 @@ float Temporary_Matrix[3][3]={
 #define NAVIGATION_SERVO_2_STRAIGHT_POS 90
 #define NAVIGATION_SERVO_3_STRAIGHT_POS 90
 #define NAVIGATION_SERVO_4_STRAIGHT_POS 90
-#define NAVIGATION_SERVO_1_MIN_POS 1
-#define NAVIGATION_SERVO_2_MIN_POS 1
-#define NAVIGATION_SERVO_3_MIN_POS 1
-#define NAVIGATION_SERVO_4_MIN_POS 1
-#define NAVIGATION_SERVO_1_MAX_POS 180
-#define NAVIGATION_SERVO_2_MAX_POS 180
-#define NAVIGATION_SERVO_3_MAX_POS 180
-#define NAVIGATION_SERVO_4_MAX_POS 180
+#define NAVIGATION_SERVO_1_MIN_POS 30
+#define NAVIGATION_SERVO_2_MIN_POS 30
+#define NAVIGATION_SERVO_3_MIN_POS 30
+#define NAVIGATION_SERVO_4_MIN_POS 30
+#define NAVIGATION_SERVO_1_MAX_POS 150
+#define NAVIGATION_SERVO_2_MAX_POS 150
+#define NAVIGATION_SERVO_3_MAX_POS 150
+#define NAVIGATION_SERVO_4_MAX_POS 150
 #define PARACHUTE_RELEASE_TIME 200
 
 #define LAUNCH_DETECTION_THRESHHOLD 7 // in g, 8 g full scale
@@ -198,8 +192,6 @@ Missile_modes_t missile_status = IN_PREFLIGHT_MODE;
 //Missile_modes_t missile_status = IN_FLIGHT_MODE;
 
 int Parachute_release_couner = 0;
-bool flag = false;
-float roll_init, pitch_init, yaw_init;
 byte Srevo_1_new_pos, Srevo_2_new_pos, Srevo_3_new_pos, Srevo_4_new_pos;
 
 
@@ -208,6 +200,13 @@ void releas_parachute(){
     parachute_servo.write(PARACHUTE_RELEASE_POS);
     timer=millis();
     missile_status = IN_PARACHUTE_MODE; 
+
+    #if ENABLE_TELEMETRY_VIA_USB == 1
+      Serial.println("IN_PARACHUTE_MODE");
+    #endif
+    #if ENABLE_TELEMETRY_VIA_XBEE == 1
+      Serial1.println("IN_PARACHUTE_MODE");
+    #endif
  }
 }
 
@@ -259,7 +258,7 @@ void Update_navigation_servos(){
 void setup()
 { 
   Serial.begin(9600);
-
+  Serial1.begin(115200);
   parachute_servo.attach(PARACHUTE_SERVO_PIN);
   navigation_servo_1.attach(NAVIGATION_SERVO_1_PIN);
   navigation_servo_2.attach(NAVIGATION_SERVO_2_PIN);
@@ -314,51 +313,71 @@ void loop() //Main Loop
 {
 
   if(missile_status == IN_PREFLIGHT_MODE){
-
     if(launch_detected()){
       missile_status = IN_FLIGHT_MODE;
       timer= millis() - 20; // switch to in_Flight_mode immediately
     }
+   #if ENABLE_TELEMETRY_VIA_USB == 1
+      Serial.print("IN_PREFLIGHT_MODE. accel_x = ");
+      Serial.println(((compass.a.x >> 4)/256.0));
+    #endif 
+   #if ENABLE_TELEMETRY_VIA_XBEE == 1
+      Serial1.print("IN_PREFLIGHT_MODE. accel_x = ");
+      Serial1.println(((compass.a.x >> 4)/256.0));
+    #endif 
 
   }
 
   if(missile_status == IN_FLIGHT_MODE){
-     if((millis()-timer)>=20)  // Main loop runs at 50Hz
-     {
-      if(Parachute_release_couner <= PARACHUTE_RELEASE_TIME ){ // wait 2 sec in IN_FLIGHT_MODE before releasing the parachute
-          releas_parachute();
-      }
-      else{
-        Parachute_release_couner++;
-      }
-      counter++;
-      timer_old = timer;
-      timer=millis();
-      if (timer>timer_old)
-      G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
-      else
-      G_Dt = 0;
+   if((millis()-timer)>=20)  // Main loop runs at 50Hz
+   {
+    if(Parachute_release_couner >= PARACHUTE_RELEASE_TIME ){ // wait 2 sec in IN_FLIGHT_MODE before releasing the parachute
+        releas_parachute();
+        return;
+    }
+    else{
+      Parachute_release_couner++;
+    }
+    counter++;
+    timer_old = timer;
+    timer=millis();
+    if (timer>timer_old)
+    G_Dt = (timer-timer_old)/1000.0;    // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
+    else
+    G_Dt = 0;
 
-      Calculate_heading();
-      Calc_new_navigation_servos_pos();
-      Update_navigation_servos();
+    Calculate_heading();
+    Calc_new_navigation_servos_pos();
+    Update_navigation_servos();
 
-      if(!flag){
-        roll_init = ToDeg(roll);
-        pitch_init = ToDeg(pitch);
-        yaw_init = ToDeg(yaw);
-        flag = true;
-      }
-      
 
-      printdata();
+   #if ENABLE_TELEMETRY_VIA_USB == 1
+      Serial.print("IN_FLIGHT_MODE. roll,pithh,yaw = ");
+      Serial.print(ToDeg(roll));
+      Serial.print(",");
+      Serial.print(ToDeg(pitch));
+      Serial.print(",");
+      Serial.print(ToDeg(yaw));
+      Serial.println();
+    #endif
+   #if ENABLE_TELEMETRY_VIA_XBEE == 1
+      Serial1.print("IN_FLIGHT_MODE. roll,pithh,yaw = ");
+      Serial1.print(ToDeg(roll));
+      Serial1.print(",");
+      Serial1.print(ToDeg(pitch));
+      Serial1.print(",");
+      Serial1.print(ToDeg(yaw));
+      Serial1.println();
+    #endif     
+
+  //  printdata();
     } 
   }
   if(missile_status == IN_PARACHUTE_MODE){
     if((millis()-timer)>=2000){ // wait one sec
       parachute_servo.write(PARACHUTE_CLOSED_POS);
     }
-    
+
   }
 
 
