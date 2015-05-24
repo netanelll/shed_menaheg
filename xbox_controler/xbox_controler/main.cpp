@@ -4,11 +4,14 @@
 
 using namespace std;
 
+#define ENABLE_COM_PORT 1
+
 CXBOXController* Player1;
 int main(int argc, char* argv[])
 {
+#if ENABLE_COM_PORT == 1
 	HANDLE serialHandle;
-	serialHandle = CreateFile("\\\\.\\COM15", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	serialHandle = CreateFile("\\\\.\\COM17", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	// get serial parameters
 	DCB dcbSerialParams = { 0 };
 	dcbSerialParams.DCBlength = sizeof (dcbSerialParams);
@@ -35,9 +38,10 @@ int main(int argc, char* argv[])
 	timeout.WriteTotalTimeoutMultiplier = 10;
 
 	SetCommTimeouts(serialHandle, &timeout);
-	
+#endif
 	Player1 = new CXBOXController(1);
-
+	int current_pitch, previous_pitch = 0, current_yaw, previous_yaw = 0;
+	UINT8 pitch_to_send, yaw_to_send;
 	cout << "Instructions:\n";
 	cout << "[A] Vibrate Left Only\n";
 	cout << "[B] Vibrate Right Only\n";
@@ -49,28 +53,42 @@ int main(int argc, char* argv[])
 	{
 		if (Player1->IsConnected())
 		{
+			current_pitch = ((Player1->GetState().Gamepad.sThumbLY * 15) / 32768) + 15;
+			current_yaw = ((Player1->GetState().Gamepad.sThumbLX * 15) / 32768) + 15;
+
+			if (current_pitch != previous_pitch)
+			{
+				pitch_to_send = (current_pitch & 0x1F) + (1 << 6);
+			#if ENABLE_COM_PORT == 1
+				DWORD dwBytesWritten = 0;
+				WriteFile(serialHandle, &pitch_to_send, 1, &dwBytesWritten, NULL);
+			#endif
+				previous_pitch = current_pitch;
+			}
+			if (current_yaw != previous_yaw)
+			{
+				pitch_to_send = (current_yaw & 0x1F);
+			#if ENABLE_COM_PORT == 1
+				DWORD dwBytesWritten = 0;
+				WriteFile(serialHandle, &pitch_to_send, 1, &dwBytesWritten, NULL);
+			#endif
+				previous_yaw = current_yaw;
+			}
 			if (Player1->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP)
 			{
 				Player1->Vibrate(65535, 0);
 			}
 
-			//if (Player1->GetState().Gamepad.sThumbLX)
-			//{
-			//	int tmp = Player1->GetState().Gamepad.sThumbLX;
-			//	if (tmp > 0)
-			//		Player1->Vibrate(0, tmp);
-			//	else if (tmp < 0)
-			//		Player1->Vibrate(tmp, 0);
-			//	else
-			//		Player1->Vibrate();
-			//}
+
 
 			if (Player1->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_Y)
 			{
 				Player1->Vibrate(65535, 65535);
-				char send = 'a';
+			#if ENABLE_COM_PORT == 1
+				char send = 254;
 				DWORD dwBytesWritten = 0;
 				WriteFile(serialHandle, &send, 1, &dwBytesWritten, NULL);
+			#endif
 			}
 
 			if (Player1->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
@@ -90,18 +108,20 @@ int main(int argc, char* argv[])
 			cin.get();
 			break;
 		}
+		#if ENABLE_COM_PORT == 1
 		unsigned char temp = 0;
 		DWORD dwBytesRead = 0;
 		ReadFile(serialHandle, &temp, 1, &dwBytesRead, NULL);
 		if (1 == dwBytesRead) cout << temp;
+#		endif
 
 	}
 	delete(Player1);
-	
 
 
+	#if ENABLE_COM_PORT == 1
 	CloseHandle(serialHandle);
-
+	#endif
 
 	return(0);
 }

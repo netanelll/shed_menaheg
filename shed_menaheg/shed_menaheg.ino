@@ -171,9 +171,9 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define NAVIGATION_SERVO_2_MAX_POS 150
 #define NAVIGATION_SERVO_3_MAX_POS 150
 #define NAVIGATION_SERVO_4_MAX_POS 150
-#define PARACHUTE_RELEASE_TIME 10000 // 50 is one sec
+#define PARACHUTE_RELEASE_TIME 150 // 50 is one sec
 
-#define LAUNCH_DETECTION_THRESHHOLD 1 // in g, 8 g full scale
+#define LAUNCH_DETECTION_THRESHHOLD 3 // in g, 8 g full scale
 
 Servo parachute_servo;
 Servo navigation_servo_1;
@@ -196,6 +196,8 @@ int Parachute_release_couner = 0;
 byte Srevo_1_new_pos, Srevo_2_new_pos, Srevo_3_new_pos, Srevo_4_new_pos;
 bool new_serial_data_available = false;
 byte data_received_via_serial;
+int received_pitch = 0, received_yaw = 0;
+
 void releas_parachute(){
   if(missile_status == IN_FLIGHT_MODE){
     parachute_servo.write(PARACHUTE_RELEASE_POS);
@@ -246,26 +248,20 @@ void Calculate_heading(){
 }
 
 void Calc_new_navigation_servos_pos(){
+  
   if(new_serial_data_available){
-    if(data_received_via_serial == 'a'){
+    if(data_received_via_serial == 255){
         releas_parachute();
     }
-    switch (data_received_via_serial>>6) {
-          case 0:
-            Srevo_1_new_pos = data_received_via_serial & 0x3F;
-            break;
-          case 1:
-            Srevo_2_new_pos = data_received_via_serial & 0x3F;
-            break;
-          case 2:
-            Srevo_3_new_pos = data_received_via_serial & 0x3F;
-            break;
-          case 3:
-            Srevo_4_new_pos = data_received_via_serial & 0x3F;
-            break;
-
-      }  
+    if((data_received_via_serial >> 6) == 0) {
+      received_yaw = (int)data_received_via_serial -15;
+    }
+    else if((data_received_via_serial >> 6) == 1){
+        received_pitch = ((int)data_received_via_serial & 0x1F) -15;
+    }  
+    new_serial_data_available = false;
   }
+
 
 }
 
@@ -350,7 +346,7 @@ void setup()
 
 void loop() //Main Loop
 {
-  while(Serial.available()){
+  if(Serial.available()){
     data_received_via_serial = Serial.read();
     new_serial_data_available = true;
   }
@@ -394,7 +390,7 @@ void loop() //Main Loop
     Update_navigation_servos();
 
 
-   #if ENABLE_TELEMETRY_VIA_USB == 11
+   #if ENABLE_TELEMETRY_VIA_USB == 1
       Serial.print("IN_FLIGHT_MODE. roll,pitch,yaw = ");
       Serial.print(ToDeg(roll));
       Serial.print(",");
@@ -420,7 +416,6 @@ void loop() //Main Loop
     if((millis()-timer)>=2000){ // wait one sec
       parachute_servo.write(PARACHUTE_CLOSED_POS);
     }
-    Serial.println("IN_PARACHUTE_MODE");
   }
 
 
