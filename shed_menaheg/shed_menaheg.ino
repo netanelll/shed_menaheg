@@ -144,6 +144,9 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define ENABLE_TELEMETRY_VIA_USB 0
 #define ENABLE_TELEMETRY_VIA_XBEE 1
 #define ENABLE_NAVIGATION_SERVO_DEBUG 0
+#define ENABLE_PID_DEBUG 0
+#define ENABLE_PARACHUTE_RELEASE_TIMER 1
+#define SET_LAUNCH_DETECTION_THRESHHOLD_TO_ONE 0
 
 /// end of debug declarations
 
@@ -173,7 +176,12 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define NAVIGATION_SERVO_4_MAX_POS 150
 #define PARACHUTE_RELEASE_TIME 150 // 50 is one sec
 
-#define LAUNCH_DETECTION_THRESHHOLD 3 // in g, 8 g full scale
+#if SET_LAUNCH_DETECTION_THRESHHOLD_TO_ONE == 1
+  #define LAUNCH_DETECTION_THRESHHOLD 1 
+#else
+  #define LAUNCH_DETECTION_THRESHHOLD 3 // in g, 8 g full scale
+#endif
+
 
 Servo parachute_servo;
 Servo navigation_servo_1;
@@ -302,7 +310,7 @@ void setup()
   #if ENABLE_TELEMETRY_VIA_USB == 1
     Serial.begin(9600);
   #endif
-  #if ENABLE_TELEMETRY_VIA_XBEE == 1
+  #if (ENABLE_TELEMETRY_VIA_XBEE == 1) || (ENABLE_PID_DEBUG == 1)
     Serial1.begin(115200);
   #endif
 
@@ -394,7 +402,9 @@ void loop() //Main Loop
         return;
     }
     else{
-      Parachute_release_couner++;
+      #if ENABLE_PARACHUTE_RELEASE_TIMER == 1
+        Parachute_release_couner++;
+      #endif
     }
     counter++;
     timer_old = timer;
@@ -406,10 +416,12 @@ void loop() //Main Loop
 
     Calculate_heading();
     roll_PID.Compute();
-    Serial1.print("roll: ");
-    Serial1.print(roll);
-    Serial1.print(" PID: ");
-    Serial1.println(roll_PID_Output);
+    #if ENABLE_PID_DEBUG == 1
+      Serial1.print("roll: ");
+      Serial1.print(roll);
+      Serial1.print(" PID: ");
+      Serial1.println(roll_PID_Output);
+    #endif
     Calc_new_navigation_servos_pos();
     Update_navigation_servos();
 

@@ -5,8 +5,11 @@
 using namespace std;
 
 #define ENABLE_COM_PORT 1
+#define ENABLE_XBOX_CONTROLER 0
 
-CXBOXController* Player1;
+#if ENABLE_XBOX_CONTROLER == 1
+	CXBOXController* Player1;
+#endif
 int main(int argc, char* argv[])
 {
 #if ENABLE_COM_PORT == 1
@@ -39,6 +42,7 @@ int main(int argc, char* argv[])
 
 	SetCommTimeouts(serialHandle, &timeout);
 #endif
+#if ENABLE_XBOX_CONTROLER == 1
 	Player1 = new CXBOXController(1);
 	int current_pitch, previous_pitch = 0, current_yaw, previous_yaw = 0;
 	UINT8 pitch_to_send, yaw_to_send;
@@ -48,9 +52,10 @@ int main(int argc, char* argv[])
 	cout << "[X] Vibrate Both\n";
 	cout << "[Y] Vibrate Neither\n";
 	cout << "[BACK] Exit\n";
+#endif
+	while (true){
 
-	while (true)
-	{
+#if ENABLE_XBOX_CONTROLER == 1
 		if (Player1->IsConnected())
 		{
 			current_pitch = ((Player1->GetState().Gamepad.sThumbLY * 15) / 32768) + 15;
@@ -108,16 +113,18 @@ int main(int argc, char* argv[])
 			cin.get();
 			break;
 		}
+#endif
 		#if ENABLE_COM_PORT == 1
 		unsigned char temp = 0;
 		DWORD dwBytesRead = 0;
 		ReadFile(serialHandle, &temp, 1, &dwBytesRead, NULL);
 		if (1 == dwBytesRead) cout << temp;
-#		endif
+		#endif
 
 	}
-	delete(Player1);
-
+	#if ENABLE_XBOX_CONTROLER == 1
+		delete(Player1);
+	#endif
 
 	#if ENABLE_COM_PORT == 1
 	CloseHandle(serialHandle);
