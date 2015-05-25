@@ -142,7 +142,7 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 /// debug declarations
 
 #define ENABLE_TELEMETRY_VIA_USB 0
-#define ENABLE_TELEMETRY_VIA_XBEE 0
+#define ENABLE_TELEMETRY_VIA_XBEE 1
 #define ENABLE_NAVIGATION_SERVO_DEBUG 0
 
 /// end of debug declarations
@@ -173,7 +173,7 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define NAVIGATION_SERVO_4_MAX_POS 150
 #define PARACHUTE_RELEASE_TIME 150 // 50 is one sec
 
-#define LAUNCH_DETECTION_THRESHHOLD 7 // in g, 8 g full scale
+#define LAUNCH_DETECTION_THRESHHOLD 3 // in g, 8 g full scale
 
 Servo parachute_servo;
 Servo navigation_servo_1;
@@ -297,8 +297,16 @@ void Update_navigation_servos(){
 
 void setup()
 { 
-  Serial.begin(9600);
-  Serial1.begin(115200);
+
+  // initializing serial interface
+  #if ENABLE_TELEMETRY_VIA_USB == 1
+    Serial.begin(9600);
+  #endif
+  #if ENABLE_TELEMETRY_VIA_XBEE == 1
+    Serial1.begin(115200);
+  #endif
+
+// initializing servos
   parachute_servo.attach(PARACHUTE_SERVO_PIN);
   navigation_servo_1.attach(NAVIGATION_SERVO_1_PIN);
   navigation_servo_2.attach(NAVIGATION_SERVO_2_PIN);
@@ -313,16 +321,16 @@ void setup()
   parachute_servo.write(PARACHUTE_CLOSED_POS);
   Update_navigation_servos();
 
-
-   Setpoint = 0;
-  //turn the PID on
+  // initializing PID
+  Setpoint = 0;
   roll_PID.SetOutputLimits((NAVIGATION_SERVO_1_MAX_POS - NAVIGATION_SERVO_1_MIN_POS)/(-2),(NAVIGATION_SERVO_1_MAX_POS - NAVIGATION_SERVO_1_MIN_POS)/2);
   roll_PID.SetSampleTime(20);
-  roll_PID.SetMode(AUTOMATIC);
+  roll_PID.SetMode(AUTOMATIC); //turn the PID on
 
+
+  // ahrs initializations
   I2C_Init();
 
-  Serial.println("shed menaheg C&C");
 
   delay(1500);
 
@@ -386,7 +394,7 @@ void loop() //Main Loop
         return;
     }
     else{
-    //  Parachute_release_couner++;
+      Parachute_release_couner++;
     }
     counter++;
     timer_old = timer;
