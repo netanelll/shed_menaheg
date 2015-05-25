@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
 {
 #if ENABLE_COM_PORT == 1
 	HANDLE serialHandle;
-	serialHandle = CreateFile("\\\\.\\COM17", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	serialHandle = CreateFile("\\\\.\\COM13", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	// get serial parameters
 	DCB dcbSerialParams = { 0 };
 	dcbSerialParams.DCBlength = sizeof (dcbSerialParams);
@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 	}
 
 	// set serial params
-	dcbSerialParams.BaudRate = CBR_9600;
+	dcbSerialParams.BaudRate = CBR_115200;
 	dcbSerialParams.ByteSize = 8;
 	dcbSerialParams.StopBits = ONESTOPBIT;
 	dcbSerialParams.Parity = NOPARITY;
@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
 			{
 				Player1->Vibrate(65535, 65535);
 			#if ENABLE_COM_PORT == 1
-				char send = 254;
+				char send = 255;
 				DWORD dwBytesWritten = 0;
 				WriteFile(serialHandle, &send, 1, &dwBytesWritten, NULL);
 			#endif

@@ -39,7 +39,7 @@ int SENSOR_SIGN[9] = {1,1,1,-1,-1,-1,1,1,1}; //Correct directions x,y,z - gyro, 
 #include <Servo.h>
 #include <L3G.h>
 #include <LSM303.h>
-
+#include <PID_v1.h>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +141,7 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 
 /// debug declarations
 
-#define ENABLE_TELEMETRY_VIA_USB 1
+#define ENABLE_TELEMETRY_VIA_USB 0
 #define ENABLE_TELEMETRY_VIA_XBEE 0
 #define ENABLE_NAVIGATION_SERVO_DEBUG 0
 
@@ -155,14 +155,14 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define NAVIGATION_SERVO_2_PIN 6
 #define NAVIGATION_SERVO_3_PIN 9
 #define NAVIGATION_SERVO_4_PIN 10
-#define NAVIGATION_SERVO_1_START_POS 90
-#define NAVIGATION_SERVO_2_START_POS 90
-#define NAVIGATION_SERVO_3_START_POS 90
-#define NAVIGATION_SERVO_4_START_POS 90
-#define NAVIGATION_SERVO_1_STRAIGHT_POS 90
-#define NAVIGATION_SERVO_2_STRAIGHT_POS 90
-#define NAVIGATION_SERVO_3_STRAIGHT_POS 90
-#define NAVIGATION_SERVO_4_STRAIGHT_POS 90
+#define NAVIGATION_SERVO_1_STRAIGHT_POS 91
+#define NAVIGATION_SERVO_2_STRAIGHT_POS 78
+#define NAVIGATION_SERVO_3_STRAIGHT_POS 92
+#define NAVIGATION_SERVO_4_STRAIGHT_POS 94
+#define NAVIGATION_SERVO_1_START_POS NAVIGATION_SERVO_1_STRAIGHT_POS
+#define NAVIGATION_SERVO_2_START_POS NAVIGATION_SERVO_2_STRAIGHT_POS
+#define NAVIGATION_SERVO_3_START_POS NAVIGATION_SERVO_3_STRAIGHT_POS
+#define NAVIGATION_SERVO_4_START_POS NAVIGATION_SERVO_4_STRAIGHT_POS
 #define NAVIGATION_SERVO_1_MIN_POS 30
 #define NAVIGATION_SERVO_2_MIN_POS 30
 #define NAVIGATION_SERVO_3_MIN_POS 30
@@ -173,7 +173,7 @@ float Temporary_Matrix[3][3]={{0,0,0 },{0,0,0},{0,0,0}};
 #define NAVIGATION_SERVO_4_MAX_POS 150
 #define PARACHUTE_RELEASE_TIME 150 // 50 is one sec
 
-#define LAUNCH_DETECTION_THRESHHOLD 3 // in g, 8 g full scale
+#define LAUNCH_DETECTION_THRESHHOLD 7 // in g, 8 g full scale
 
 Servo parachute_servo;
 Servo navigation_servo_1;
@@ -191,6 +191,11 @@ enum Missile_modes_t {
 
 Missile_modes_t missile_status = IN_PREFLIGHT_MODE;
 
+float Setpoint, roll_PID_Output;
+
+//Specify the links and initial tuning parameters
+float Kp=2, Ki=5, Kd=1;
+PID roll_PID(&roll, &roll_PID_Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 int Parachute_release_couner = 0;
 byte Srevo_1_new_pos, Srevo_2_new_pos, Srevo_3_new_pos, Srevo_4_new_pos;
@@ -261,8 +266,8 @@ void Calc_new_navigation_servos_pos(){
     }  
     new_serial_data_available = false;
   }
-
-
+  Srevo_1_new_pos = NAVIGATION_SERVO_1_STRAIGHT_POS - roll_PID_Output;
+  Srevo_4_new_pos = NAVIGATION_SERVO_4_STRAIGHT_POS - roll_PID_Output;
 }
 
 void Update_navigation_servos(){
@@ -309,7 +314,11 @@ void setup()
   Update_navigation_servos();
 
 
-
+   Setpoint = 0;
+  //turn the PID on
+  roll_PID.SetOutputLimits((NAVIGATION_SERVO_1_MAX_POS - NAVIGATION_SERVO_1_MIN_POS)/(-2),(NAVIGATION_SERVO_1_MAX_POS - NAVIGATION_SERVO_1_MIN_POS)/2);
+  roll_PID.SetSampleTime(20);
+  roll_PID.SetMode(AUTOMATIC);
 
   I2C_Init();
 
@@ -346,9 +355,11 @@ void setup()
 
 void loop() //Main Loop
 {
-  if(Serial.available()){
-    data_received_via_serial = Serial.read();
-    new_serial_data_available = true;
+  if(Serial1.available()){
+    data_received_via_serial = Serial1.read();
+    if(missile_status == IN_FLIGHT_MODE){
+      new_serial_data_available = true;
+    }
   }
 
   if(missile_status == IN_PREFLIGHT_MODE){
@@ -375,7 +386,7 @@ void loop() //Main Loop
         return;
     }
     else{
-      Parachute_release_couner++;
+    //  Parachute_release_couner++;
     }
     counter++;
     timer_old = timer;
@@ -386,6 +397,11 @@ void loop() //Main Loop
     G_Dt = 0;
 
     Calculate_heading();
+    roll_PID.Compute();
+    Serial1.print("roll: ");
+    Serial1.print(roll);
+    Serial1.print(" PID: ");
+    Serial1.println(roll_PID_Output);
     Calc_new_navigation_servos_pos();
     Update_navigation_servos();
 
